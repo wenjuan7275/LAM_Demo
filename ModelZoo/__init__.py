@@ -1,7 +1,7 @@
 import os
 import torch
 
-MODEL_DIR = '/home/jinjingu/Desktop/Github/IRSaliency/ModelZoo/models'
+MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
 
 
 NN_LIST = [
@@ -9,7 +9,8 @@ NN_LIST = [
     'CARN',
     'RRDBNet',
     'RNAN', 
-    'SAN'
+    'SAN',
+    'GRL'
 ]
 
 
@@ -29,13 +30,16 @@ MODEL_LIST = {
     'RNAN': {
         'Base': 'RNAN_SR_F64G10P48BIX4.pt',
     },
+    'GRL':  {
+        'Tiny': 'gnll_final_tiny_w32_s64.ckpt'
+    }
 }
 
 def print_network(model, model_name):
     num_params = 0
     for param in model.parameters():
         num_params += param.numel()
-    print('Network [%s] was created. Total number of parameters: %.1f kelo. '
+    print('Network [%s] was created. Total number of parameters: %.1f K. '
           'To see the architecture, do print(network).'
           % (model_name, num_params / 1000))
 
@@ -70,6 +74,25 @@ def get_model(model_name, factor=4, num_channels=3):
         elif model_name == 'RNAN':
             from .NN.rnan import RNAN
             net = RNAN(factor=factor, num_channels=num_channels)
+        elif model_name == 'GRL':
+            from .NN.grl import GNLL
+            net = GNLL(
+                upscale=4,
+                img_size=64,
+                window_size=32,
+                stripe_size=[64, 64],
+                depths=[4, 4, 4, 4],
+                embed_dim=64,
+                num_heads_window=[2, 2, 2, 2],
+                num_heads_stripe=[2, 2, 2, 2],
+                mlp_ratio=2,
+                qkv_proj_type="linear",
+                anchor_proj_type="avgpool",
+                anchor_window_down_factor=2,
+                out_proj_type="linear",
+                conv_type="1conv",
+                upsampler="pixelshuffledirect",
+            )
 
         else:
             raise NotImplementedError()
@@ -99,7 +122,30 @@ def load_model(model_loading_name):
     state_dict_path = os.path.join(MODEL_DIR, MODEL_LIST[model_name][training_name])
     print(f'Loading model {state_dict_path} for {model_name} network.')
     state_dict = torch.load(state_dict_path, map_location='cpu')
-    net.load_state_dict(state_dict)
+    if model_name == "GRL":
+        new_state_dict = {}
+        if "state_dict" in state_dict:
+            state_dict = state_dict["state_dict"]
+            for k, v in state_dict.items():
+                if (
+                        k.find("relative_coords_table") >= 0
+                        or k.find("relative_position_index") >= 0
+                        or k.find("attn_mask") >= 0
+                        or k.find("model.table_") >= 0
+                        or k.find("model.index_") >= 0
+                        or k.find("model.mask_") >= 0
+                        # or k.find(".upsample.") >= 0
+                ):
+                    print(k)
+                elif k.find("model.") >= 0:
+                    new_state_dict[k.replace("model.", "")] = v
+
+        # try:
+        current_state_dict = net.state_dict()
+        current_state_dict.update(new_state_dict)
+        net.load_state_dict(current_state_dict, strict=True)
+    else:
+        net.load_state_dict(state_dict)
     return net
 
 
