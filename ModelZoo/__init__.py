@@ -92,6 +92,7 @@ def get_model(model_name, factor=4, num_channels=3):
                 out_proj_type="linear",
                 conv_type="1conv",
                 upsampler="pixelshuffledirect",
+                fairscale_checkpoint=True,
             )
 
         else:
