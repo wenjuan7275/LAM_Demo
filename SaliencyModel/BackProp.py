@@ -98,6 +98,7 @@ def Path_gradient(numpy_image, model, attr_objective, path_interpolation_func, c
             grad = img_tensor.grad.cpu().numpy()
             if np.any(np.isnan(grad)):
                 grad[np.isnan(grad)] = 0.0
+            result = result.detach().cpu()
         else:
             result = model(_add_batch_one(img_tensor))
             target = attr_objective(result)
@@ -105,6 +106,7 @@ def Path_gradient(numpy_image, model, attr_objective, path_interpolation_func, c
             grad = img_tensor.grad.numpy()
             if np.any(np.isnan(grad)):
                 grad[np.isnan(grad)] = 0.0
+            result = result.detach()
 
         grad_accumulate_list[i] = grad * lambda_derivative_interpolation[i]
         result_list.append(result)

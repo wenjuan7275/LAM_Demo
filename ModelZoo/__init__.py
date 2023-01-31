@@ -1,7 +1,7 @@
 import os
 import torch
 
-MODEL_DIR = '/content/LAM_Demo/ModelZoo/models'
+MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
 
 
 NN_LIST = [
@@ -35,7 +35,7 @@ def print_network(model, model_name):
     num_params = 0
     for param in model.parameters():
         num_params += param.numel()
-    print('Network [%s] was created. Total number of parameters: %.1f kelo. '
+    print('Network [%s] was created. Total number of parameters: %.1f K. '
           'To see the architecture, do print(network).'
           % (model_name, num_params / 1000))
 
